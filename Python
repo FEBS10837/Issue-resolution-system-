@@ -1,0 +1,188 @@
+CREATE DATABASE issue_resolution_db;
+USE issue_resolution_db;
+
+CREATE TABLE users (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    Username VARCHAR(50) UNIQUE,
+    Password VARCHAR(50),
+    Role ENUM(‘user’, ‘admin’) DEFAULT ‘user’
+);
+
+CREATE TABLE categories (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    Name VARCHAR(50) UNIQUE
+);
+
+CREATE TABLE issues (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    User_id INT,
+    Category_id INT,
+    Title VARCHAR(100),
+    Description TEXT,
+    Status ENUM(‘Open’, ‘Resolved’) DEFAULT ‘Open’,
+    Resolution TEXT,
+    Created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (category_id) REFERENCES categories(id)
+);
+INSERT INTO categories (name) VALUES (‘Technical’), (‘Billing’), (‘General’);
+INSERT INTO users (username, password, role) VALUES (‘admin’, ‘admin123’, ‘admin’);
+2.Python
+import mysql.connector
+from mysql.connector import error 
+
+def db_connect():
+    return mysql.connector.connect(
+        host=”localhost”,
+        user=”root”,          # Change if your MySQL username is different
+        password=” ”,  # Change to your MySQL password
+        database=”issue_resolution_db”
+    )
+
+def register():
+    print(“=== User Registration ===”)
+    username = input(“Enter username: “)
+    password = getpass(“Enter password: “)
+    db = db_connect()
+    cur = db.cursor()
+    try:
+        cur.execute(“INSERT INTO users (username, password) VALUES (%s, %s)”, (username, password))
+        db.commit()
+        print(“Registration successful!”)
+    except:
+        print(“Username already exists.”)
+    db.close()
+
+def login():
+    print(“=== Login ===”)
+    username = input(“Username: “)
+    password = getpass(“Password: “)
+    db = db_connect()
+    cur = db.cursor()
+    cur.execute(“SELECT id, role FROM users WHERE username=%s AND password=%s”, (username, password))
+    user = cur.fetchone()
+    db.close()
+    if user:
+        print(“Login successful!”)
+        return user
+    else:
+        print(“Invalid credentials.”)
+        return None
+
+def file_complaint(user_id):
+    db = db_connect()
+    cur = db.cursor()
+    cur.execute(“SELECT * FROM categories”)
+    categories = cur.fetchall()
+    print(“Categories:”)
+    for cat in categories:
+        print(f”{cat[0]}. {cat[1]}”)
+    cat_id = int(input(“Enter category number: “))
+    title = input(“Complaint Title: “)
+    desc = input(“Describe your complaint: “)
+    cur.execute(“INSERT INTO issues (user_id, category_id, title, description) VALUES (%s, %s, %s, %s)”,
+                (user_id, cat_id, title, desc))
+    db.commit()
+    print(“Complaint filed successfully!”)
+    db.close()
+
+def check_complaints(user_id):
+    db = db_connect()
+    cur = db.cursor()
+    cur.execute(“””
+        SELECT issues.id, categories.name, issues.title, issues.status, issues.resolution
+        FROM issues
+        JOIN categories ON issues.category_id = categories.id
+        WHERE issues.user_id = %s
+    “””, (user_id,))
+    issues = cur.fetchall()
+    if not issues:
+        print(“No complaints found.”)
+    else:
+        for issue in issues:
+            print(f”\nComplaint #{issue[0]} | Category: {issue[1]}”)
+            print(f”Title: {issue[2]}”)
+            print(f”Status: {issue[3]}”)
+            print(f”Resolution: {issue[4]}”)
+    db.close()
+
+def admin_menu(admin_id):
+    while True:
+        print(“\n1. View all complaints\n2. Resolve complaint\n3. Logout”)
+        choice = input(“Choose: “)
+        if choice == “1”:
+            db = db_connect()
+            cur = db.cursor()
+            Cur.execute(“
+                SELECT issues.id, users.username, categories.name, issues.title, issues.status, issues.resolution
+                FROM issues
+                JOIN users ON issues.user_id = users.id
+                JOIN categories ON issues.category_id = categories.id
+            ”)
+            issues = cur.fetchall()
+            for issue in issues:
+                print(f”\nID: {issue[0]} | User: {issue[1]} | Category: {issue[2]}”)
+                print(f”Title: {issue[3]}”)
+                print(f”Status: {issue[4]}”)
+                print(f”Resolution: {issue[5]}”)
+            db.close()
+        elif choice == “2”:
+            complaint_id = input(“Enter complaint ID to resolve: “)
+            resolution = input(“Enter resolution/response: “)
+            db = db_connect()
+            cur = db.cursor()
+            cur.execute(“UPDATE issues SET status=’Resolved’, resolution=%s WHERE id=%s”, (resolution, complaint_id))
+            db.commit()
+            db.close()
+            print(“Complaint resolved!”)
+        elif choice == “3”:
+            break
+
+def user_menu(user_id):
+    while True:
+        print(“\n1. File complaint\n2. Check my complaints\n3. Logout”)
+        choice = input(“Choose: “)
+        if choice == “1”:
+            file_complaint(user_id)
+        elif choice == “2”:
+            check_complaints(user_id)
+        elif choice == “3”:
+            break
+
+def main():
+    print(“=== Issue Resolution System ===”)
+    while True:
+        print(“\n1. Register\n2. Login\n3. Exit”)
+        choice = input(“Choose: “)
+        if choice == “1”:
+            register()
+        elif choice == “2”:
+            user = login()
+            if user:
+                if user[1] == ‘admin’:
+                    Admin_menu(user[0])
+                else:
+                    user_menu(user[0])
+        elif choice == “3”:
+            print(“Goodbye!”)
+            break
+def show_statistics():
+    db = db_connect()
+    cur = db.cursor()
+    cur.execute(“SELECT COUNT(*) FROM issues”)
+    total = cur.fetchone()[0]
+    cur.execute(“SELECT COUNT(*) FROM issues WHERE status=’Resolved’”)
+    resolved = cur.fetchone()[0]
+    cur.execute(“SELECT COUNT(*) FROM issues WHERE status=’Open’”)
+    open_ = cur.fetchone()[0]
+    print(f”Total complaints: {total}”)
+    print(f”Resolved: {resolved}”)
+    print(f”Pending: {open_}”)
+    db.close()                      
+ print(“\n1. View all complaints\n2. Resolve complaint\n3. Show statistics\n4. Logout”)
+# ... in admin_menu, if choice == “3”: show_statistics()
+   if __name__ == “__main__”:
+    main()
+
+
+
